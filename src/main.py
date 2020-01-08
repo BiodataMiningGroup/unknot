@@ -1,8 +1,11 @@
 import sys
 from Dataset import Dataset
+from Unknot import Unknot
 
 source = Dataset(sys.argv[1])
 target = Dataset(sys.argv[2])
 
-train_patches = source.generate_scale_transfer(target)
-style_patches = target.generate_style_patches(train_patches)
+unknot = Unknot(source, target)
+
+unknot.perform_scale_transfer()
+unknot.perform_style_transfer(device='cuda')

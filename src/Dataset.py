@@ -8,6 +8,7 @@ from Image import Image
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import random
 import shutil
+from pyvips import Image as VipsImage
 
 class Dataset(object):
 
@@ -34,6 +35,15 @@ class Dataset(object):
       metadata = self.get_metadata()
 
       return np.fromiter(metadata.values(), dtype=float).mean()
+
+   def get_scale_transfer_path(self):
+      return self.get_config_path('scale_transfer_target_path')
+
+   def get_style_patches_path(self):
+      return self.get_config_path('style_patches_target_path')
+
+   def get_style_transfer_path(self):
+      return self.get_config_path('style_transfer_target_path')
 
    def read_report(self, report_path):
       metadata = self.get_metadata()
@@ -67,7 +77,7 @@ class Dataset(object):
       if not isinstance(target_dataset, Dataset):
          raise TypeError('The target dataset must be a Dataset.')
 
-      target_path = self.get_config_path('scale_transfer_target_path')
+      target_path = self.get_scale_transfer_path()
       train_json_path = os.path.join(target_path, 'train.json')
 
       if os.path.isfile(train_json_path):
@@ -118,7 +128,7 @@ class Dataset(object):
       return train_json
 
    def generate_style_patches(self, train_patches):
-      target_path = self.get_config_path('style_patches_target_path')
+      target_path = self.get_style_patches_path()
       crop_dimension = train_patches['crop_dimension']
       count = len(train_patches['images'])
       style_json_path = os.path.join(target_path, 'style.json')
@@ -159,3 +169,17 @@ class Dataset(object):
 
       return style_json
 
+   def store_style_transfer_patch(self, array, filename):
+      masks_path = os.path.join(self.get_scale_transfer_path(), 'masks')
+
+      target_path = self.get_style_transfer_path()
+      images_target_path = os.path.join(target_path, 'images')
+      ensure_dir(images_target_path)
+      masks_target_path = os.path.join(target_path, 'masks')
+      ensure_dir(masks_target_path)
+
+      height, width, bands = array.shape
+      image = VipsImage.new_from_memory(array.data, width, height, bands, 'uchar')
+      image.write_to_file(os.path.join(images_target_path, filename))
+      mask_filename = '{}.npz'.format(filename)
+      shutil.copy(os.path.join(masks_path, mask_filename), os.path.join(masks_target_path, mask_filename))
