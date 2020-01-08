@@ -38,7 +38,7 @@ class Image(object):
 
       for i, annotation in enumerate(self.annotations):
          image_file = '{}_{}.jpg'.format(self.filename, i)
-         image_crop, mask_crops = self.generate_crop(image, masks, annotation, dimension)
+         image_crop, mask_crops = self.generate_annotation_crop(image, masks, annotation, dimension)
          mask_file = self.save_mask(mask_crops, image_file, masks_path)
          image_crop.write_to_file(os.path.join(images_path, image_file))
          image_paths.append(image_file)
@@ -48,7 +48,7 @@ class Image(object):
 
       return image_paths, mask_paths, mean_pixels
 
-   def generate_crop(self, image, masks, annotation, dimension):
+   def generate_annotation_crop(self, image, masks, annotation, dimension):
       width, height = image.width, image.height
 
       crop_width = min(width, dimension)
@@ -78,3 +78,15 @@ class Image(object):
       np.savez_compressed(os.path.join(path, mask_file), masks=mask_store)
 
       return mask_file
+
+   def generate_random_crop(self, target_path, dimension, prefix=''):
+      image = VipsImage.new_from_file(self.path)
+      x = np.random.randint(image.width - dimension)
+      y = np.random.randint(image.height - dimension)
+      image_crop = image.extract_area(x, y, dimension, dimension)
+      filename = self.filename
+      if prefix != '':
+         filename = '{}-{}'.format(prefix, filename)
+      image_crop.write_to_file(os.path.join(target_path, filename))
+
+      return filename
