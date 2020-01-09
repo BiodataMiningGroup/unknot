@@ -12,11 +12,6 @@ from CircleAnnotation import CircleAnnotation
 from Image import Image
 from PatchesCollection import PatchesCollection
 
-import torch
-from torchvision import models
-import HRNet.HRNet as HRNet
-import HRNet.utils as HRNetUtils
-
 class Dataset(object):
 
    def __init__(self, config_path):
@@ -77,6 +72,9 @@ class Dataset(object):
 
       return self.read_report(test_report)
 
+   def get_annotation_patches(self):
+      return PatchesCollection(self.get_annotation_patches_path())
+
    def generate_annotation_patches(self, scale_transfer_target=None, max_workers=4):
       scale_transfer = scale_transfer_target is not None
       for_dataset = scale_transfer_target.name if scale_transfer else None
@@ -84,7 +82,7 @@ class Dataset(object):
       if scale_transfer and not isinstance(scale_transfer_target, Dataset):
          raise TypeError('The scale transfer target dataset must be a Dataset.')
 
-      patches = PatchesCollection(self.get_annotation_patches_path())
+      patches = self.get_annotation_patches()
 
       if patches.exists:
          if patches.scale_transfer == scale_transfer and patches.for_dataset == for_dataset and patches.crop_dimension == self.crop_dimension:
@@ -131,6 +129,13 @@ class Dataset(object):
       return patches
 
    def generate_style_patches(self, count, crop_dimension, max_workers=4):
+      # Import torch locally becuase it is incompatible with TensorFlow which is imported
+      # elsewhere.
+      import torch
+      from torchvision import models
+      import HRNet.HRNet as HRNet
+      import HRNet.utils as HRNetUtils
+
       patches = PatchesCollection(self.get_style_patches_path())
 
       if patches.exists:
