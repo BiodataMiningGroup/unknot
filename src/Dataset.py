@@ -62,12 +62,12 @@ class Dataset(object):
 
       return images.values()
 
-   def read_train_report(self):
+   def get_train_images(self):
       train_report = self.get_config_path('train_annotations_file')
 
       return self.read_report(train_report)
 
-   def read_test_report(self):
+   def get_test_images(self):
       test_report = self.get_config_path('test_annotations_file')
 
       return self.read_report(test_report)
@@ -91,7 +91,7 @@ class Dataset(object):
             patches.destroy()
 
       patches.create(self.crop_dimension)
-      images = self.read_train_report()
+      images = self.get_train_images()
       images_target_path = patches.get_images_path()
       masks_target_path = patches.get_masks_path()
 

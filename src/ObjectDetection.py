@@ -1,8 +1,11 @@
 import numpy as np
 import os.path
 import imgaug
+import json
+from pyvips import Image as VipsImage
 
 from PatchesCollection import PatchesCollection
+from Dataset import Dataset as ImageDataset
 from utils import ensure_dir
 
 import mrcnn.config
@@ -48,6 +51,9 @@ class InferenceConfig(Config):
 class Dataset(mrcnn.utils.Dataset):
    def __init__(self, images, name='no_name', masks=[], classes={}, ignore_classes=[]):
       super().__init__()
+      # Convert to the required dict with image IDs.
+      images = {k: v for k, v in enumerate(images)}
+
       self.images = images
       self.masks = masks
       self.name = name
@@ -87,8 +93,6 @@ class Dataset(mrcnn.utils.Dataset):
 class TrainingDataset(Dataset):
    def __init__(self, train_patches):
       images = train_patches.get_images_paths()
-      # Convert to the required dict with image IDs.
-      images = {k: v for k, v in enumerate(images)}
       masks = train_patches.get_masks_paths()
       classes = {1: 'Interesting'}
       super().__init__(images=images, masks=masks, classes=classes)
@@ -141,5 +145,56 @@ class ObjectDetector(object):
       model_path = os.path.join(self.model_dir, "mask_rcnn_final.h5")
       model.keras_model.save_weights(model_path)
 
-   def perform_inference(self, dataset):
-      pass
+   def perform_inference(self, annotation_patches, dataset, target_dir):
+      if not isinstance(dataset, ImageDataset):
+         raise TypeError('The dataset must be a Dataset.')
+
+      images = [image.path for image in dataset.get_test_images()]
+      config = InferenceConfig(annotation_patches)
+      dataset = InferenceDataset(images)
+
+      config.display()
+      dataset.prepare()
+
+      ensure_dir(target_dir)
+
+      model_path = os.path.join(self.model_dir, "mask_rcnn_final.h5")
+      if not os.path.exists(model_path):
+         raise RuntimeError('The trained model file does not exist. Perform training first.')
+
+      model = mrcnn.model.MaskRCNN(mode="inference", config=config, model_dir=self.model_dir)
+      model.load_weights(model_path, by_name=True)
+
+      for i, image_info in enumerate(dataset.image_info):
+         image = dataset.load_image(i)
+         results = model.detect([image])
+         self.process_inference_result(results[0], image_info, target_dir)
+
+   def process_inference_result(self, result, image_info, target_dir):
+      points = []
+      for roi, score in zip(result['rois'], result['scores']):
+         # ROIs are stored as (y1, x1, y2, x2).
+         y = min(roi[0], roi[2])
+         x = min(roi[1], roi[3])
+         h = abs(roi[0] - roi[2])
+         w = abs(roi[1] - roi[3])
+         rx = round(w / 2)
+         ry = round(h / 2)
+         r = max(rx, ry)
+         points.append([int(x + rx), int(y + ry), int(r), float(score)])
+
+      path = os.path.join(target_dir, '{}.json'.format(image_info['id']))
+      with open(path, 'w') as outfile:
+         json.dump(points, outfile)
+
+      image = VipsImage.new_from_file(image_info['path'])
+      width, height = image.width, image.height
+
+      mask = np.zeros((height, width), dtype=np.bool)
+      for m in result['masks']:
+          mask += m
+      mask = mask.astype(np.uint8) * 255
+      path = os.path.join(target_dir, '{}.png'.format(image_info['id']))
+      image = VipsImage.new_from_memory(mask, width, height, 1, 'uchar')
+      image.write_to_file(path)
+
