@@ -1,14 +1,21 @@
 import json
 import csv
 import numpy as np
-from utils import normalize_path, ensure_dir
 import os
-from CircleAnnotation import CircleAnnotation
-from Image import Image
-from concurrent.futures import ThreadPoolExecutor, as_completed
 import random
 import shutil
 from pyvips import Image as VipsImage
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+from utils import normalize_path
+from CircleAnnotation import CircleAnnotation
+from Image import Image
+from PatchesCollection import PatchesCollection
+
+import torch
+from torchvision import models
+import HRNet.HRNet as HRNet
+import HRNet.utils as HRNetUtils
 
 class Dataset(object):
 
@@ -23,7 +30,7 @@ class Dataset(object):
       return normalize_path(self.config_dir, self.config[key])
 
    def get_metadata(self):
-      metadata_path = self.get_config_path('metadata')
+      metadata_path = self.get_config_path('metadata_file')
       with open(metadata_path, 'r') as file:
          reader = csv.reader(file)
          next(reader)
@@ -36,14 +43,11 @@ class Dataset(object):
 
       return np.fromiter(metadata.values(), dtype=float).mean()
 
-   def get_scale_transfer_path(self):
-      return self.get_config_path('scale_transfer_target_path')
+   def get_annotation_patches_path(self):
+      return self.get_config_path('annotation_patches_dir')
 
    def get_style_patches_path(self):
-      return self.get_config_path('style_patches_target_path')
-
-   def get_style_transfer_path(self):
-      return self.get_config_path('style_transfer_target_path')
+      return self.get_config_path('style_patches_dir')
 
    def read_report(self, report_path):
       metadata = self.get_metadata()
@@ -64,40 +68,44 @@ class Dataset(object):
       return images.values()
 
    def read_train_report(self):
-      train_report = self.get_config_path('train_annotations_report')
+      train_report = self.get_config_path('train_annotations_file')
 
       return self.read_report(train_report)
 
    def read_test_report(self):
-      test_report = self.get_config_path('test_annotations_report')
+      test_report = self.get_config_path('test_annotations_file')
 
       return self.read_report(test_report)
 
-   def generate_scale_transfer(self, target_dataset):
-      if not isinstance(target_dataset, Dataset):
-         raise TypeError('The target dataset must be a Dataset.')
+   def generate_annotation_patches(self, scale_transfer_target=None, max_workers=4):
+      scale_transfer = scale_transfer_target is not None
+      for_dataset = scale_transfer_target.name if scale_transfer else None
 
-      target_path = self.get_scale_transfer_path()
-      train_json_path = os.path.join(target_path, 'train.json')
+      if scale_transfer and not isinstance(scale_transfer_target, Dataset):
+         raise TypeError('The scale transfer target dataset must be a Dataset.')
 
-      if os.path.isfile(train_json_path):
-         with open(train_json_path, 'r') as f:
-            train_json = json.load(f)
-         if train_json['for_dataset'] == target_dataset.name and train_json['crop_dimension'] == self.crop_dimension:
-            return train_json
+      patches = PatchesCollection(self.get_annotation_patches_path())
 
-      images_target_path = os.path.join(target_path, 'images')
-      ensure_dir(images_target_path)
-      masks_target_path = os.path.join(target_path, 'masks')
-      ensure_dir(masks_target_path)
-      target_distance = target_dataset.get_mean_distance()
+      if patches.exists:
+         if patches.scale_transfer == scale_transfer and patches.for_dataset == for_dataset and patches.crop_dimension == self.crop_dimension:
+            return patches
+         else:
+            patches.destroy()
+
+      patches.create(self.crop_dimension)
       images = self.read_train_report()
+      images_target_path = patches.get_images_path()
+      masks_target_path = patches.get_masks_path()
 
-      executor = ThreadPoolExecutor(max_workers=self.config['workers'])
+      if scale_transfer:
+         target_distance = scale_transfer_target.get_mean_distance()
+         for image in images:
+            image.set_target_distance(target_distance)
+
+      executor = ThreadPoolExecutor(max_workers=max_workers)
       jobs = []
       for image in images:
-         image.set_target_distance(target_distance)
-         jobs.append(executor.submit(image.generate_train_patches, images_target_path, masks_target_path, self.crop_dimension))
+         jobs.append(executor.submit(image.generate_train_patches, images_target_path, masks_target_path, patches.crop_dimension))
 
       images = []
       masks = []
@@ -112,74 +120,153 @@ class Dataset(object):
 
       mean_pixel = np.array(mean_pixels).mean(axis = 0).tolist()
 
-      train_json = {
-         'for_dataset': target_dataset.name,
-         'crop_dimension': self.crop_dimension,
-         'images_path': 'images',
-         'masks_path': 'masks',
+      patches.fill({
+         'scale_transfer': scale_transfer,
+         'for_dataset': for_dataset,
          'images': images,
          'masks': masks,
          'mean_pixel': mean_pixel,
-      }
+      })
 
-      with open(train_json_path, 'w') as f:
-         json.dump(train_json, f, indent = 3)
+      return patches
 
-      return train_json
+   def generate_style_patches(self, count, crop_dimension, max_workers=4):
+      patches = PatchesCollection(self.get_style_patches_path())
 
-   def generate_style_patches(self, train_patches):
-      target_path = self.get_style_patches_path()
-      crop_dimension = train_patches['crop_dimension']
-      count = len(train_patches['images'])
-      style_json_path = os.path.join(target_path, 'style.json')
-
-      if os.path.isfile(style_json_path):
-         with open(style_json_path, 'r') as f:
-            style_json = json.load(f)
-         if len(style_json['images']) == count and style_json['crop_dimension'] == crop_dimension:
-            return style_json
+      if patches.exists:
+         if len(patches.images) == count and patches.crop_dimension == crop_dimension:
+            return patches
          else:
-            shutil.rmtree(target_path)
+            patches.destroy()
+
+      patches.create(self.crop_dimension, has_masks=False)
 
       metadata = self.get_metadata()
       images_dir = self.get_config_path('images_dir')
       images = [Image(os.path.join(images_dir, filename), distance) for filename, distance in metadata.items()]
-      target_path = os.path.join(target_path, 'images')
-      ensure_dir(target_path)
+      target_path = patches.get_images_path()
 
-      executor = ThreadPoolExecutor(max_workers=self.config['workers'])
+      executor = ThreadPoolExecutor(max_workers=max_workers)
       jobs = []
 
       for i, image in enumerate(random.choices(images, k=count)):
          jobs.append(executor.submit(image.generate_random_crop, target_path, crop_dimension, prefix=i))
 
-      patches = []
+      images = []
 
       for job in as_completed(jobs):
-         patches.append(job.result())
+         images.append(job.result())
 
-      style_json = {
-         'images_path': 'images',
-         'images': patches,
+      patches.fill({
+         'images': images,
          'crop_dimension': crop_dimension,
+      })
+
+      return patches
+
+   def apply_style_transfer(self, source_patches, device='cuda', steps=10000, show_every=100, max_workers=4):
+      if not isinstance(source_patches, PatchesCollection):
+         raise TypeError('The source patches must be a PatchesCollection.')
+
+      if source_patches.for_dataset is not None and source_patches.for_dataset != self.name:
+         raise RuntimeError('The source patches were generated for a different dataset.')
+
+      if hasattr(source_patches, 'style_transfer') and source_patches.style_transfer == True:
+         return source_patches
+
+      patch_count = len(source_patches.images)
+      style_patches = self.generate_style_patches(patch_count, source_patches.crop_dimension, max_workers=max_workers)
+
+      # The following code is adapted from:
+      # https://github.com/limingcv/Photorealistic-Style-Transfer/blob/cd8919a529d406d27f157a065a7b84f0f3c1535b/Photorealistic%20Style%20Transfer/transfer.ipynb
+
+      device = torch.device(device)
+
+      VGG = models.vgg19(pretrained=True).features
+      VGG.to(device)
+      for parameter in VGG.parameters():
+         parameter.requires_grad_(False)
+
+      style_net = HRNet.HRNet()
+      style_net.to(device)
+
+      content_paths = source_patches.get_images_paths()
+      style_paths = style_patches.get_images_paths()
+
+      style_weights = {
+         'conv1_1': 0.1,
+         'conv2_1': 0.2,
+         'conv3_1': 0.4,
+         'conv4_1': 0.8,
+         'conv5_1': 1.6,
       }
 
-      with open(style_json_path, 'w') as f:
-         json.dump(style_json, f, indent = 3)
+      content_weight = 150
+      style_weight = 1
 
-      return style_json
+      optimizer = torch.optim.Adam(style_net.parameters(), lr=5e-3)
+      scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=200, gamma=0.9)
 
-   def store_style_transfer_patch(self, array, filename):
-      masks_path = os.path.join(self.get_scale_transfer_path(), 'masks')
+      print('Train HRNet')
 
-      target_path = self.get_style_transfer_path()
-      images_target_path = os.path.join(target_path, 'images')
-      ensure_dir(images_target_path)
-      masks_target_path = os.path.join(target_path, 'masks')
-      ensure_dir(masks_target_path)
+      for epoch in range(0, steps + 1):
+         content_path = random.choice(content_paths)
+         content_image = HRNetUtils.load_image(content_path).to(device)
+         content_features = HRNetUtils.get_features(content_image, VGG)
 
-      height, width, bands = array.shape
-      image = VipsImage.new_from_memory(array.data, width, height, bands, 'uchar')
-      image.write_to_file(os.path.join(images_target_path, filename))
-      mask_filename = '{}.npz'.format(filename)
-      shutil.copy(os.path.join(masks_path, mask_filename), os.path.join(masks_target_path, mask_filename))
+         style_path = random.choice(style_paths)
+         style_image = HRNetUtils.load_image(style_path).to(device)
+         style_features = HRNetUtils.get_features(style_image, VGG)
+         style_gram_matrices = {layer: HRNetUtils.get_grim_matrix(style_features[layer]) for layer in style_features}
+
+         scheduler.step()
+
+         target = style_net(content_image).to(device)
+         target.requires_grad_(True)
+
+         target_features = HRNetUtils.get_features(target, VGG)
+         content_loss = torch.mean((target_features['conv4_2'] - content_features['conv4_2']) ** 2)
+
+         style_loss = 0
+
+         for layer in style_weights:
+            target_feature = target_features[layer]
+            target_gram_matrix = HRNetUtils.get_grim_matrix(target_feature)
+            style_gram_matrix = style_gram_matrices[layer]
+
+            layer_style_loss = style_weights[layer] * torch.mean((target_gram_matrix - style_gram_matrix) ** 2)
+            b, c, h, w = target_feature.shape
+            style_loss += layer_style_loss / (c * h * w)
+
+         total_loss = content_weight * content_loss + style_weight * style_loss
+         optimizer.zero_grad()
+         total_loss.backward()
+         optimizer.step()
+
+         if epoch % show_every == 0:
+            print("Epoch {} of {}:".format(epoch, steps))
+            print('Total loss: ', total_loss.item())
+            print('Content loss: ', content_loss.item())
+            print('Style loss: ', style_loss.item())
+
+      print('Apply HRNet')
+
+      mean_pixels = []
+
+      for path in content_paths:
+         print('Styling {}'.format(os.path.basename(path)))
+         target = style_net(HRNetUtils.load_image(path).to(device)).to(device)
+         result = np.array(HRNetUtils.im_convert(target) * 255).astype(np.uint8)
+         mean_pixels.append(result.reshape((-1, 3)).mean(axis = 0))
+         height, width, bands = result.shape
+         image = VipsImage.new_from_memory(result.data, width, height, bands, 'uchar')
+         image.write_to_file(path)
+
+      mean_pixel = np.array(mean_pixels).mean(axis = 0).tolist()
+
+      source_patches.fill({
+         'style_transfer': True,
+         'mean_pixel': mean_pixel,
+      })
+
+      return source_patches
