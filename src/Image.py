@@ -90,3 +90,30 @@ class Image(object):
       image_crop.write_to_file(os.path.join(target_path, filename))
 
       return filename
+
+   def evaluate(self, results_path):
+      total_annotations = len(self.annotations)
+      results_file = os.path.join(results_path, '{}.png'.format(self.filename))
+      results_image = VipsImage.new_from_file(results_file)
+      results_image = np.ndarray(buffer=results_image.write_to_memory(), dtype=np.uint8, shape=[results_image.height, results_image.width, results_image.bands])
+
+      _, contours, _ = cv2.findContours(results_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+      detected_annotations = []
+      correct_contours = set([])
+
+      for annotation in self.annotations:
+         for i, contour in enumerate(contours):
+            distance = cv2.pointPolygonTest(contour, annotation.get_center(), True)
+            # If the distance is negat1ive, the point is outside the polygon. Circles
+            # that lie outside are still counted if they intersect the contour.
+            if distance >= 0 or (annotation.get_radius() + distance) >= 0:
+               detected_annotations.append(annotation)
+               correct_contours.add(i)
+               break
+
+      total_regions = len(contours)
+      correct_detections = len(detected_annotations)
+      correct_regions = len(correct_contours)
+
+      return total_annotations, total_regions, correct_detections, correct_regions

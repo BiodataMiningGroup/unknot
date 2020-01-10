@@ -32,4 +32,10 @@ Training takes about seven hours for one of the four provided datasets on an NVI
 
 ## 3. Evaluation
 
-TODO
+Run the following command perform the evaluation of an object detection result from the previous step (assuming the results were stored in the `results` directory):
+
+```bash
+python3 3_evaluation.py <path to target dataset>/dataset.json results
+```
+
+This will output an evaluation that includes the recall, precision, <i>F</i><sub>2</sub>-Score and <i>L</i>-Score of the object detection result.

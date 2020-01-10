@@ -4,6 +4,7 @@ import numpy as np
 import os
 import random
 import shutil
+import math
 from pyvips import Image as VipsImage
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -269,3 +270,37 @@ class Dataset(object):
       })
 
       return source_patches
+
+   def evaluate_test_images(self, results_path):
+      images = self.get_test_images()
+
+      evaluation = {
+         'total_annotations': 0,
+         'total_regions': 0,
+         'total_detected_annotations': 0,
+         'total_correct_regions': 0,
+         'recall': 0,
+         'precision': 0,
+         'f-score': 0,
+         'l-score': 0,
+      }
+
+      for image in images:
+         ta, tr, cd, cr = image.evaluate(results_path)
+         evaluation['total_annotations'] += ta
+         evaluation['total_regions'] += tr
+         evaluation['total_detected_annotations'] += cd
+         evaluation['total_correct_regions'] += cr
+
+      recall = evaluation['total_detected_annotations'] / evaluation['total_annotations']
+      evaluation['recall'] = recall
+      precision = evaluation['total_correct_regions'] / evaluation['total_regions']
+      evaluation['precision'] = precision
+
+      if recall > 0 and precision > 0:
+         evaluation['f-score'] = 5 * recall * precision / (recall + 4 * precision)
+
+      evaluation['l-score'] = 0.5 * (1 / (1 + math.exp(-0.25 * (recall * 100 - 80))) + 1 / (1 + math.exp(-0.5 * (precision * 100 - 10))))
+
+      return evaluation
+
