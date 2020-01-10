@@ -212,8 +212,6 @@ class Dataset(object):
       optimizer = torch.optim.Adam(style_net.parameters(), lr=5e-3)
       scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=200, gamma=0.9)
 
-      print('Train HRNet')
-
       for epoch in range(0, steps + 1):
          content_path = random.choice(content_paths)
          content_image = HRNetUtils.load_image(content_path).to(device)
@@ -249,17 +247,12 @@ class Dataset(object):
          optimizer.step()
 
          if epoch % show_every == 0:
-            print("Epoch {} of {}:".format(epoch, steps))
-            print('Total loss: ', total_loss.item())
-            print('Content loss: ', content_loss.item())
-            print('Style loss: ', style_loss.item())
-
-      print('Apply HRNet')
+            print("Training HRNet epoch {} of {}".format(epoch, steps))
 
       mean_pixels = []
 
       for path in content_paths:
-         print('Styling {}'.format(os.path.basename(path)))
+         print('Applying HRNet to {}'.format(os.path.basename(path)))
          target = style_net(HRNetUtils.load_image(path).to(device)).to(device)
          result = np.array(HRNetUtils.im_convert(target) * 255).astype(np.uint8)
          result = np.ascontiguousarray(result)

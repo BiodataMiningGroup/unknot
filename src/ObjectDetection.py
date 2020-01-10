@@ -166,6 +166,7 @@ class ObjectDetector(object):
       model.load_weights(model_path, by_name=True)
 
       for i, image_info in enumerate(dataset.image_info):
+         print('Processing image {}'.format(os.path.basename(image_info['path'])))
          image = dataset.load_image(i)
          results = model.detect([image])
          self.process_inference_result(results[0], image_info, target_dir)
