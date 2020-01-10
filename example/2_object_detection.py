@@ -21,45 +21,40 @@ config = {
 train_scheme = [
    {
       'layers': 'heads',
-      'epochs': 1,
+      'epochs': 20,
       'learning_rate': 0.001
    },
-   # {
-   #    'layers': 'heads',
-   #    'epochs': 20,
-   #    'learning_rate': 0.001
-   # },
-   # {
-   #    'layers': 'heads',
-   #    'epochs': 20,
-   #    'learning_rate': 0.0005
-   # },
-   # {
-   #    'layers': 'heads',
-   #    'epochs': 20,
-   #    'learning_rate': 0.0001
-   # },
-   # {
-   #    'layers': 'all',
-   #    'epochs': 20,
-   #    'learning_rate': 0.0001
-   # },
-   # {
-   #    'layers': 'all',
-   #    'epochs': 20,
-   #    'learning_rate': 0.00005
-   # },
-   # {
-   #    'layers': 'all',
-   #    'epochs': 20,
-   #    'learning_rate': 0.00001
-   # },
+   {
+      'layers': 'heads',
+      'epochs': 20,
+      'learning_rate': 0.0005
+   },
+   {
+      'layers': 'heads',
+      'epochs': 20,
+      'learning_rate': 0.0001
+   },
+   {
+      'layers': 'all',
+      'epochs': 20,
+      'learning_rate': 0.0001
+   },
+   {
+      'layers': 'all',
+      'epochs': 20,
+      'learning_rate': 0.00005
+   },
+   {
+      'layers': 'all',
+      'epochs': 20,
+      'learning_rate': 0.00001
+   },
 ]
 
 coco_model_path = 'mask_rcnn_coco.h5'
 if not os.path.exists(coco_model_path):
    utils.download_trained_weights(coco_model_path)
 
-# detector.perform_training(annotation_patches, scheme=train_scheme, config=config, initial_model=coco_model_path)
+detector.perform_training(annotation_patches, scheme=train_scheme, config=config, initial_model=coco_model_path)
 
 detector.perform_inference(annotation_patches, target, os.path.join(results, 'detections'))
