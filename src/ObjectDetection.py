@@ -171,6 +171,7 @@ class ObjectDetector(object):
          self.process_inference_result(results[0], image_info, target_dir)
 
    def process_inference_result(self, result, image_info, target_dir):
+      filename = os.path.basename(image_info['path'])
       points = []
       for roi, score in zip(result['rois'], result['scores']):
          # ROIs are stored as (y1, x1, y2, x2).
@@ -183,7 +184,7 @@ class ObjectDetector(object):
          r = max(rx, ry)
          points.append([int(x + rx), int(y + ry), int(r), float(score)])
 
-      path = os.path.join(target_dir, '{}.json'.format(image_info['id']))
+      path = os.path.join(target_dir, '{}.json'.format(filename))
       with open(path, 'w') as outfile:
          json.dump(points, outfile)
 
@@ -194,7 +195,7 @@ class ObjectDetector(object):
       for m in result['masks']:
           mask += m
       mask = mask.astype(np.uint8) * 255
-      path = os.path.join(target_dir, '{}.png'.format(image_info['id']))
+      path = os.path.join(target_dir, '{}.png'.format(filename))
       image = VipsImage.new_from_memory(mask, width, height, 1, 'uchar')
       image.write_to_file(path)
 
