@@ -3,7 +3,7 @@ import os
 
 from src.Dataset import Dataset
 from src.ObjectDetection import ObjectDetector
-import src.mrcnn.utils
+import src.mrcnn.utils as utils
 
 source = Dataset(sys.argv[1])
 target = Dataset(sys.argv[2])
@@ -58,7 +58,7 @@ train_scheme = [
 
 coco_model_path = 'mask_rcnn_coco.h5'
 if not os.path.exists(coco_model_path):
-   mrcnn.utils.download_trained_weights(coco_model_path)
+   utils.download_trained_weights(coco_model_path)
 
 # detector.perform_training(annotation_patches, scheme=train_scheme, config=config, initial_model=coco_model_path)
 

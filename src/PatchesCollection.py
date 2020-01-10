@@ -1,7 +1,7 @@
 import json
 import shutil
 import os
-from utils import ensure_dir
+from . import utils
 
 class PatchesCollection(object):
    def __init__(self, path):
@@ -25,9 +25,9 @@ class PatchesCollection(object):
          'crop_dimension': crop_dimension,
       }
 
-      ensure_dir(self.get_images_path())
+      utils.ensure_dir(self.get_images_path())
       if has_masks:
-         ensure_dir(self.get_masks_path())
+         utils.ensure_dir(self.get_masks_path())
       self.store_patches_json()
       self.sync_patches_json()
       self.exists = True
@@ -49,7 +49,7 @@ class PatchesCollection(object):
       return [os.path.join(base, file) for file in self.masks]
 
    def store_patches_json(self):
-      ensure_dir(self.path)
+      utils.ensure_dir(self.path)
       with open(self.json_path, 'w') as f:
          json.dump(self.patches_json, f, indent = 3)
 

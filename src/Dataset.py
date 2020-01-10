@@ -7,10 +7,10 @@ import shutil
 from pyvips import Image as VipsImage
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from utils import normalize_path
-from CircleAnnotation import CircleAnnotation
-from Image import Image
-from PatchesCollection import PatchesCollection
+from . import utils
+from . import CircleAnnotation
+from . import Image
+from . import PatchesCollection
 
 class Dataset(object):
 
@@ -22,7 +22,7 @@ class Dataset(object):
       self.crop_dimension = self.config.get('crop_dimension', 512)
 
    def get_config_path(self, key):
-      return normalize_path(self.config_dir, self.config[key])
+      return utils.normalize_path(self.config_dir, self.config[key])
 
    def get_metadata(self):
       metadata_path = self.get_config_path('metadata_file')
@@ -53,11 +53,11 @@ class Dataset(object):
          next(reader)
          for row in reader:
             image_filename = row[8]
-            annotation = CircleAnnotation(row)
+            annotation = CircleAnnotation.CircleAnnotation(row)
             if image_filename not in images:
                image_path = os.path.join(images_dir, image_filename)
                image_distance = metadata[image_filename]
-               images[image_filename] = Image(image_path, image_distance)
+               images[image_filename] = Image.Image(image_path, image_distance)
             images[image_filename].add_annotation(annotation)
 
       return images.values()
@@ -73,7 +73,7 @@ class Dataset(object):
       return self.read_report(test_report)
 
    def get_annotation_patches(self):
-      return PatchesCollection(self.get_annotation_patches_path())
+      return PatchesCollection.PatchesCollection(self.get_annotation_patches_path())
 
    def generate_annotation_patches(self, scale_transfer_target=None, max_workers=4):
       scale_transfer = scale_transfer_target is not None
@@ -129,14 +129,7 @@ class Dataset(object):
       return patches
 
    def generate_style_patches(self, count, crop_dimension, max_workers=4):
-      # Import torch locally becuase it is incompatible with TensorFlow which is imported
-      # elsewhere.
-      import torch
-      from torchvision import models
-      import HRNet.HRNet as HRNet
-      import HRNet.utils as HRNetUtils
-
-      patches = PatchesCollection(self.get_style_patches_path())
+      patches = PatchesCollection.PatchesCollection(self.get_style_patches_path())
 
       if patches.exists:
          if len(patches.images) == count and patches.crop_dimension == crop_dimension:
@@ -148,7 +141,7 @@ class Dataset(object):
 
       metadata = self.get_metadata()
       images_dir = self.get_config_path('images_dir')
-      images = [Image(os.path.join(images_dir, filename), distance) for filename, distance in metadata.items()]
+      images = [Image.Image(os.path.join(images_dir, filename), distance) for filename, distance in metadata.items()]
       target_path = patches.get_images_path()
 
       executor = ThreadPoolExecutor(max_workers=max_workers)
@@ -170,7 +163,14 @@ class Dataset(object):
       return patches
 
    def apply_style_transfer(self, source_patches, device='cuda', steps=10000, show_every=100, max_workers=4):
-      if not isinstance(source_patches, PatchesCollection):
+      # Import torch locally becuase it is incompatible with TensorFlow which is imported
+      # elsewhere.
+      import torch
+      from torchvision import models
+      from .HRNet import HRNet
+      from .HRNet import utils as HRNetUtils
+
+      if not isinstance(source_patches, PatchesCollection.PatchesCollection):
          raise TypeError('The source patches must be a PatchesCollection.')
 
       if source_patches.for_dataset is not None and source_patches.for_dataset != self.name:

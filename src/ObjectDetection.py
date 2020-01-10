@@ -4,15 +4,15 @@ import imgaug
 import json
 from pyvips import Image as VipsImage
 
-from PatchesCollection import PatchesCollection
-from Dataset import Dataset as ImageDataset
-from utils import ensure_dir
+from . import PatchesCollection
+from . import Dataset as ImageDataset
+from . import utils
 
-import mrcnn.config
-import mrcnn.utils
-import mrcnn.model
+from .mrcnn import config as mrcnn_config
+from .mrcnn import utils as mrcnn_utils
+from .mrcnn import model as mrcnn_model
 
-class Config(mrcnn.config.Config):
+class Config(mrcnn_config.Config):
    def __init__(self, train_patches, config={}):
       self.NAME = 'unknot'
       # Add one for the background class (0).
@@ -48,7 +48,7 @@ class InferenceConfig(Config):
       self.IMAGE_RESIZE_MODE = "pad64"
       super().__init__(train_patches, config)
 
-class Dataset(mrcnn.utils.Dataset):
+class Dataset(mrcnn_utils.Dataset):
    def __init__(self, images, name='no_name', masks=[], classes={}, ignore_classes=[]):
       super().__init__()
       # Convert to the required dict with image IDs.
@@ -107,19 +107,19 @@ class ObjectDetector(object):
       self.model_dir = model_dir
 
    def perform_training(self, annotation_patches, scheme, config={}, initial_model=None):
-      if not isinstance(annotation_patches, PatchesCollection):
+      if not isinstance(annotation_patches, PatchesCollection.PatchesCollection):
          raise TypeError('The annotation patches must be a PatchesCollection.')
 
       if not annotation_patches.exists:
          raise RuntimeError('The annotation patches do not exist.')
 
-      ensure_dir(self.model_dir)
+      utils.ensure_dir(self.model_dir)
       train_config = TrainingConfig(annotation_patches, config)
       train_dataset = TrainingDataset(annotation_patches)
 
       train_config.display()
       train_dataset.prepare()
-      model = mrcnn.model.MaskRCNN(mode="training", config=train_config, model_dir=self.model_dir)
+      model = mrcnn_model.MaskRCNN(mode="training", config=train_config, model_dir=self.model_dir)
 
       if initial_model:
          exclude_layers = [
@@ -146,7 +146,7 @@ class ObjectDetector(object):
       model.keras_model.save_weights(model_path)
 
    def perform_inference(self, annotation_patches, dataset, target_dir):
-      if not isinstance(dataset, ImageDataset):
+      if not isinstance(dataset, ImageDataset.Dataset):
          raise TypeError('The dataset must be a Dataset.')
 
       images = [image.path for image in dataset.get_test_images()]
@@ -156,13 +156,13 @@ class ObjectDetector(object):
       config.display()
       dataset.prepare()
 
-      ensure_dir(target_dir)
+      utils.ensure_dir(target_dir)
 
       model_path = os.path.join(self.model_dir, "mask_rcnn_final.h5")
       if not os.path.exists(model_path):
          raise RuntimeError('The trained model file does not exist. Perform training first.')
 
-      model = mrcnn.model.MaskRCNN(mode="inference", config=config, model_dir=self.model_dir)
+      model = mrcnn_model.MaskRCNN(mode="inference", config=config, model_dir=self.model_dir)
       model.load_weights(model_path, by_name=True)
 
       for i, image_info in enumerate(dataset.image_info):
