@@ -1,17 +1,17 @@
 import sys
 import os
 
-from Dataset import Dataset
-from ObjectDetection import ObjectDetector
-
-import mrcnn.utils
+from src.Dataset import Dataset
+from src.ObjectDetection import ObjectDetector
+import src.mrcnn.utils
 
 source = Dataset(sys.argv[1])
 target = Dataset(sys.argv[2])
+results = sys.argv[3]
 
 annotation_patches = source.get_annotation_patches()
 
-detector = ObjectDetector('model')
+detector = ObjectDetector(os.path.join(results, 'model'))
 
 config = {
    'RPN_NMS_THRESHOLD': 0.85,
@@ -62,4 +62,4 @@ if not os.path.exists(coco_model_path):
 
 # detector.perform_training(annotation_patches, scheme=train_scheme, config=config, initial_model=coco_model_path)
 
-detector.perform_inference(annotation_patches, target, 'detections')
+detector.perform_inference(annotation_patches, target, os.path.join(results, 'detections'))
