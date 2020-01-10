@@ -262,6 +262,7 @@ class Dataset(object):
          print('Styling {}'.format(os.path.basename(path)))
          target = style_net(HRNetUtils.load_image(path).to(device)).to(device)
          result = np.array(HRNetUtils.im_convert(target) * 255).astype(np.uint8)
+         result = np.ascontiguousarray(result)
          mean_pixels.append(result.reshape((-1, 3)).mean(axis = 0))
          height, width, bands = result.shape
          image = VipsImage.new_from_memory(result.data, width, height, bands, 'uchar')
