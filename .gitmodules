@@ -1,3 +1,6 @@
 [submodule "vendor/Photorealistic-Style-Transfer"]
 	path = vendor/Photorealistic-Style-Transfer
 	url = git@github.com:limingcv/Photorealistic-Style-Transfer.git
+[submodule "vendor/Mask_RCNN"]
+	path = vendor/Mask_RCNN
+	url = git@github.com:mzur/Mask_RCNN.git
