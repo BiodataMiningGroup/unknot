@@ -1,6 +1,6 @@
 # UnKnoT
 
-This repository contains the code for the paper "[Unsupervised knowledge transfer for object detection in marine environmental monitoring and exploration]."(#)
+This repository contains the code for the paper "[Unsupervised knowledge transfer for object detection in marine environmental monitoring and exploration](#)."
 
 ## Requirements
 
@@ -26,15 +26,15 @@ Then run `pip3 install --user -r unknot/requirements.txt`. Alternatively you can
 
 ## Datasets
 
-The datasets that were used in the paper are available at [Zenodo](https://zenodo.org/).
+The datasets that were used in the paper are available at [Zenodo](https://zenodo.org/):
 
-- S083: [![DOI](https://zenodo.org/badge/doi/10.5281/zenodo.3600132.svg)](https://doi.org/https://doi.org/10.5281/zenodo.3600132)
+- S083: <https://doi.org/10.5281/zenodo.3600132>
 
-- S155: TODO
+- S155: <https://doi.org/10.5281/zenodo.3603803>
 
-- S171: TODO
+- S171: <https://doi.org/10.5281/zenodo.3603809>
 
-- S233: TODO
+- S233: <https://doi.org/10.5281/zenodo.3603815>
 
 ## Usage
 
