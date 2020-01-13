@@ -36,6 +36,26 @@ The datasets that were used in the paper are available at [Zenodo](https://zenod
 
 - S233: <https://doi.org/10.5281/zenodo.3603815>
 
+Each dataset consists of the following files:
+
+- `annotations/test.csv`: The BIIGLE CSV annotation report of the annotations of the test split of this dataset. These annotations are used to test the performance of the trained Mask R-CNN model.
+
+- `annotations/train.csv`: The BIIGLE CSV annotation report of the annotations of the train split of this dataset. These annotations are used to generate the annotation patches which are transformed with scale and style transfer to be used to train the Mask R-CNN model.
+
+- `images/`: Directory that contains all the original image files.
+
+- `dataset.json`: JSON file that contains information about the dataset.
+   - `name`: The name of the dataset.
+   - `images_dir`: Name of the directory that contains the original image files.
+   - `metadata_file`: Path to the CSV file that contains image metadata.
+   - `test_annotations_file`: Path to the CSV file that contains the test annotations.
+   - `train_annotations_file`: Path to the CSV file that contains the train annotations.
+   - `annotation_patches_dir`: Name of the directory that should contain the scale- and style-transferred annotation patches.
+   - `style_patches_dir`: Name of the directory that should contain the style patches.
+   - `crop_dimension`: Edge length of an annotation or style patch in pixels.
+
+- `metadata.csv`: A CSV file that contains metadata for each original image file. In this case the distance of the camera to the sea floor is given for each image.
+
 ## Usage
 
 Head over to the [example](example).
