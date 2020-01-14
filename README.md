@@ -4,7 +4,7 @@ This repository contains the code for the paper "[Unsupervised knowledge transfe
 
 ## Requirements
 
-The code is written in Python 3 and uses TensorFlow and PyTorch. It requires a GPU for decent processing speeds. It was tested with Ubuntu 18.04 and an NVIDIA Tesla V100 GPU with 16 GB video memory.
+The code is written in Python 3 and uses TensorFlow and PyTorch. It requires a GPU for decent processing speeds. It was tested with Ubuntu 18.04, Python 3.6 and an NVIDIA Tesla V100 GPU with 16 GB video memory.
 
 Please refer to the [TensorFlow documentation](https://www.tensorflow.org/install/gpu#ubuntu_1804_cuda_101) on how to set up the GPU drivers and CUDA for TensorFlow and PyTorch.
 
