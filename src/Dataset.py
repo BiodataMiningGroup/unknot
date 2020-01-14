@@ -76,7 +76,7 @@ class Dataset(object):
    def get_annotation_patches(self):
       return PatchesCollection.PatchesCollection(self.get_annotation_patches_path())
 
-   def generate_annotation_patches(self, scale_transfer_target=None, max_workers=4):
+   def generate_annotation_patches(self, scale_transfer_target=None, max_workers=4, reuse_patches=True):
       scale_transfer = scale_transfer_target is not None
       for_dataset = scale_transfer_target.name if scale_transfer else None
 
@@ -86,7 +86,7 @@ class Dataset(object):
       patches = self.get_annotation_patches()
 
       if patches.exists:
-         if patches.scale_transfer == scale_transfer and patches.for_dataset == for_dataset and patches.crop_dimension == self.crop_dimension:
+         if reuse_patches and patches.scale_transfer == scale_transfer and patches.for_dataset == for_dataset and patches.crop_dimension == self.crop_dimension:
             return patches
          else:
             patches.destroy()
@@ -129,11 +129,11 @@ class Dataset(object):
 
       return patches
 
-   def generate_style_patches(self, count, crop_dimension, max_workers=4):
+   def generate_style_patches(self, count, crop_dimension, max_workers=4, reuse_patches=True):
       patches = PatchesCollection.PatchesCollection(self.get_style_patches_path())
 
       if patches.exists:
-         if len(patches.images) == count and patches.crop_dimension == crop_dimension:
+         if reuse_patches and len(patches.images) == count and patches.crop_dimension == crop_dimension:
             return patches
          else:
             patches.destroy()
@@ -163,7 +163,7 @@ class Dataset(object):
 
       return patches
 
-   def apply_style_transfer(self, source_patches, device='cuda', steps=10000, show_every=100, max_workers=4):
+   def apply_style_transfer(self, source_patches, device='cuda', steps=10000, show_every=100, max_workers=4, reuse_patches=True):
       # Import torch locally becuase it is incompatible with TensorFlow which is imported
       # elsewhere.
       import torch
@@ -177,11 +177,11 @@ class Dataset(object):
       if source_patches.for_dataset is not None and source_patches.for_dataset != self.name:
          raise RuntimeError('The source patches were generated for a different dataset.')
 
-      if hasattr(source_patches, 'style_transfer') and source_patches.style_transfer == True:
+      if reuse_patches and hasattr(source_patches, 'style_transfer') and source_patches.style_transfer == True:
          return source_patches
 
       patch_count = len(source_patches.images)
-      style_patches = self.generate_style_patches(patch_count, source_patches.crop_dimension, max_workers=max_workers)
+      style_patches = self.generate_style_patches(patch_count, source_patches.crop_dimension, max_workers=max_workers, reuse_patches=reuse_patches)
 
       # The following code is adapted from:
       # https://github.com/limingcv/Photorealistic-Style-Transfer/blob/cd8919a529d406d27f157a065a7b84f0f3c1535b/Photorealistic%20Style%20Transfer/transfer.ipynb
