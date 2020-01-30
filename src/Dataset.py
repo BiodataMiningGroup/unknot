@@ -260,7 +260,7 @@ class Dataset(object):
          mean_pixels.append(result.reshape((-1, 3)).mean(axis = 0))
          height, width, bands = result.shape
          image = VipsImage.new_from_memory(result.data, width, height, bands, 'uchar')
-         image.write_to_file(path)
+         image.write_to_file(path, strip=True, Q=95)
 
       mean_pixel = np.array(mean_pixels).mean(axis = 0).tolist()
 

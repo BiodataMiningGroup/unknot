@@ -1,6 +1,6 @@
 import numpy as np
 import os.path
-import imgaug
+import imgaug.augmenters as iaa
 import json
 from pyvips import Image as VipsImage
 
@@ -21,11 +21,12 @@ class Config(mrcnn_config.Config):
       self.VALIDATION_STEPS = 0
       self.MEAN_PIXEL = np.array(train_patches.mean_pixel)
 
-      self.AUGMENTATION = imgaug.augmenters.Sometimes(0.5, [
-         imgaug.augmenters.Fliplr(0.5),
-         imgaug.augmenters.Flipud(0.5),
-         imgaug.augmenters.Affine(rotate=(-180, 180)),
-         imgaug.augmenters.GaussianBlur(sigma=(0.0, 2.0)),
+      self.AUGMENTATION = iaa.Sometimes(0.5, [
+         iaa.Fliplr(0.5),
+         iaa.Flipud(0.5),
+         iaa.Affine(rotate=(-180, 180)),
+         iaa.GaussianBlur(sigma=(0.0, 2.0)),
+         iaa.JpegCompression(compression=(0, 50)),
       ])
 
       for key, value in config.items():
