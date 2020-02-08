@@ -22,12 +22,12 @@ class Config(mrcnn_config.Config):
       self.MEAN_PIXEL = np.array(train_patches.mean_pixel)
 
       self.AUGMENTATION = iaa.SomeOf((0, None), [
-         iaa.Fliplr(0.5),
-         iaa.Flipud(0.5),
+         iaa.Fliplr(1.0),
+         iaa.Flipud(1.0),
          iaa.Affine(rotate=[90, 180, 270]),
-         iaa.GaussianBlur(sigma=(0.0, 2.0)),
+         iaa.GaussianBlur(sigma=(1.0, 2.0)),
          iaa.JpegCompression(compression=(25, 50)),
-      ])
+      ], random_order=True)
 
       for key, value in config.items():
          setattr(self, key, value)
