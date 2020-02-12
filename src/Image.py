@@ -40,7 +40,7 @@ class Image(object):
          image_file = '{}_{}.jpg'.format(self.filename, i)
          image_crop, mask_crops = self.generate_annotation_crop(image, masks, annotation, dimension)
          mask_file = self.save_mask(mask_crops, image_file, masks_path)
-         image_crop.write_to_file(os.path.join(images_path, image_file), strip=True)
+         image_crop.write_to_file(os.path.join(images_path, image_file), strip=True, Q=95)
          image_paths.append(image_file)
          mask_paths.append(mask_file)
          np_crop = np.ndarray(buffer=image_crop.write_to_memory(), shape=[image_crop.height, image_crop.width, image_crop.bands], dtype=np.uint8)
@@ -87,7 +87,7 @@ class Image(object):
       filename = self.filename
       if prefix != '':
          filename = '{}-{}'.format(prefix, filename)
-      image_crop.write_to_file(os.path.join(target_path, filename), strip=True)
+      image_crop.write_to_file(os.path.join(target_path, filename), strip=True, Q=95)
 
       return filename
 

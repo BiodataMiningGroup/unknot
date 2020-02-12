@@ -21,32 +21,32 @@ config = {
 train_scheme = [
    {
       'layers': 'heads',
-      'epochs': 20,
+      'epochs': 10,
       'learning_rate': 0.001
    },
    {
       'layers': 'heads',
-      'epochs': 20,
+      'epochs': 10,
       'learning_rate': 0.0005
    },
    {
       'layers': 'heads',
-      'epochs': 20,
+      'epochs': 10,
       'learning_rate': 0.0001
    },
    {
       'layers': 'all',
-      'epochs': 20,
+      'epochs': 10,
       'learning_rate': 0.0001
    },
    {
       'layers': 'all',
-      'epochs': 20,
+      'epochs': 10,
       'learning_rate': 0.00005
    },
    {
       'layers': 'all',
-      'epochs': 20,
+      'epochs': 10,
       'learning_rate': 0.00001
    },
 ]
