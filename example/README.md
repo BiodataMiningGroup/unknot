@@ -2,23 +2,19 @@
 
 Please read the [paper](#) to learn more on how UnKnoT works. In the following, the practical application of the code is described.
 
-**Important note:** The style transfer code uses PyTorch whereas the object detection code uses TensorFlow. These modules don't play well with each other when imported in the same script (they use mismatching cuDNN versions). Therefore, style transfer and object detection need to be executed with two separate scripts.
-
 ## 0. Preparation
 
 1. Download two datasets, one as source dataset (e.g. S155) and one as target dataset (e.g. S083).
 
 2. Set the `IMAGES_PER_GPU` in [`2_object_detection.py`](2_object_detection.py) to a number that fits to your GPU. As a rule of thumb, a GPU with 16 GB is able to handle five images of 512x512 px.
 
-## 1. Scale- and style transfer
+## 1. Scale transfer
 
-Run the following command to generate the scale- and style transferred annotation patches for the source dataset:
+Run the following command to generate the scale transferred annotation patches for the source dataset:
 
 ```bash
-python3 1_scale_and_style_transfer.py <path to source dataset>/dataset.json <path to target dataset>/dataset.json
+python3 1_scale_transfer.py <path to source dataset>/dataset.json <path to target dataset>/dataset.json
 ```
-
-Style transfer takes about 25 minutes for one of the four provided datasets on an NVIDIA Tesla V100.
 
 ## 2. Object detection
 
