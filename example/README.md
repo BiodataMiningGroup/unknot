@@ -28,7 +28,7 @@ Run the following command perform object detection on the target dataset based o
 python3 2_object_detection.py <path to source dataset>/dataset.json <path to target dataset>/dataset.json results
 ```
 
-Training takes about eight hours for one of the four provided datasets on an NVIDIA Tesla V100. The detection results will be stored in the `results` directory.
+Training takes about five hours for one of the four provided datasets on an NVIDIA Tesla V100. The detection results will be stored in the `results` directory.
 
 ## 3. Evaluation
 
