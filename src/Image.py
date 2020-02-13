@@ -103,14 +103,16 @@ class Image(object):
       correct_contours = set([])
 
       for annotation in self.annotations:
+         detected = False
          for i, contour in enumerate(contours):
             distance = cv2.pointPolygonTest(contour, annotation.get_center(), True)
             # If the distance is negat1ive, the point is outside the polygon. Circles
             # that lie outside are still counted if they intersect the contour.
             if distance >= 0 or (annotation.get_radius() + distance) >= 0:
-               detected_annotations.append(annotation)
+               detected = True
                correct_contours.add(i)
-               break
+         if detected:
+            detected_annotations.append(annotation)
 
       total_regions = len(contours)
       correct_detections = len(detected_annotations)
