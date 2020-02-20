@@ -15,12 +15,13 @@ from . import PatchesCollection
 
 class Dataset(object):
 
-   def __init__(self, config_path):
+   def __init__(self, config_path, only_classes=[]):
       with open(config_path, 'r') as f:
          self.config = json.load(f)
       self.config_dir = os.path.dirname(config_path)
       self.name = self.config['name']
       self.crop_dimension = self.config.get('crop_dimension', 512)
+      self.only_classes = only_classes
 
    def get_config_path(self, key):
       return utils.normalize_path(self.config_dir, self.config[key])
@@ -45,6 +46,9 @@ class Dataset(object):
    def get_style_patches_path(self):
       return self.get_config_path('style_patches_dir')
 
+   def should_ignore_annotation(self, annotation):
+      return len(self.only_classes) > 0 and annotation.label not in self.only_classes
+
    def read_report(self, report_path):
       metadata = self.get_metadata()
       images_dir = self.get_config_path('images_dir')
@@ -55,6 +59,10 @@ class Dataset(object):
          for row in reader:
             image_filename = row[8]
             annotation = CircleAnnotation.CircleAnnotation(row)
+
+            if self.should_ignore_annotation(annotation):
+               continue
+
             if image_filename not in images:
                image_path = os.path.join(images_dir, image_filename)
                image_distance = metadata[image_filename]
