@@ -163,7 +163,7 @@ class Dataset(object):
       if recall > 0 and precision > 0:
          evaluation['f-score'] = 5 * recall * precision / (recall + 4 * precision)
 
-      evaluation['l-score'] = 0.5 * (1 / (1 + math.exp(-0.25 * (recall * 100 - 80))) + 1 / (1 + math.exp(-0.5 * (precision * 100 - 10))))
+      evaluation['l-score'] = 2 / ((1 + math.exp(-0.25 * (recall * 100 - 80))) + (1 + math.exp(-0.5 * (precision * 100 - 10))))
 
       return evaluation
 
