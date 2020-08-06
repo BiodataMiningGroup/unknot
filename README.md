@@ -1,6 +1,6 @@
 # UnKnoT
 
-This repository contains the code for the paper "[Unsupervised knowledge transfer for object detection in marine environmental monitoring and exploration](#)."
+This repository contains the code for the paper "[Unsupervised knowledge transfer for object detection in marine environmental monitoring and exploration](https://doi.org/10.1109/ACCESS.2020.3014441)."
 
 ## Requirements
 
