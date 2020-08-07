@@ -64,7 +64,13 @@ Head over to the [example](example).
 Please cite our paper if it is helpful to your work:
 
 ```
-TODO
+@article{zurowietz2020unsupervised,
+  title={Unsupervised Knowledge Transfer for Object Detection in Marine Environmental Monitoring and Exploration}, 
+  author={Zurowietz, Martin and Nattkemper, Tim Wilhelm},
+  journal={IEEE Access}, 
+  year={2020},
+  doi={10.1109/ACCESS.2020.3014441}
+}
 ```
 
 ## Acknowledgments
