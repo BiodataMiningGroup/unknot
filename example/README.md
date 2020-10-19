@@ -1,6 +1,6 @@
 # UnKnoT Example
 
-Please read the [paper](#) to learn more on how UnKnoT works. In the following, the practical application of the code is described.
+Please read the [paper](https://doi.org/10.1109/ACCESS.2020.3014441) to learn more on how UnKnoT works. In the following, the practical application of the code is described.
 
 ## 0. Preparation
 
