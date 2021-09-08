@@ -1,6 +1,6 @@
 numpy==1.16.*
 scipy==1.2.*
-Pillow==8.2.*
+Pillow==8.3.*
 pyvips==2.1.*
 cython
 matplotlib==3.1.*
