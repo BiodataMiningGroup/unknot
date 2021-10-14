@@ -97,7 +97,7 @@ class Image(object):
       results_image = VipsImage.new_from_file(results_file)
       results_image = np.ndarray(buffer=results_image.write_to_memory(), dtype=np.uint8, shape=[results_image.height, results_image.width, results_image.bands])
 
-      _, contours, _ = cv2.findContours(results_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+      contours, _ = cv2.findContours(results_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
       detected_annotations = []
       correct_contours = set([])

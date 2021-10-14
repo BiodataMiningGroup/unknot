@@ -7,6 +7,6 @@ matplotlib==3.1.*
 scikit-image==0.16.*
 tensorflow==1.15.*
 Keras==2.1.*
-opencv-python-headless==3.4.5.*
+opencv-python-headless==4.5.*
 h5py==2.10.*
 imgaug==0.3.*
