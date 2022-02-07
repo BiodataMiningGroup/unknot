@@ -12,7 +12,7 @@ class CircleAnnotation(object):
       self.scale = factor
 
    def get_center(self):
-      return tuple(np.round(self.center * self.scale).astype(int))
+      return tuple(np.round(self.center * self.scale).astype(int).tolist())
 
    def get_radius(self):
       return int(np.round(self.radius * self.scale))
