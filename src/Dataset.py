@@ -1,169 +1,228 @@
-import json
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from pyvips import Image
+from pyvips.error import Error as VipsError
+from scipy.sparse import csr_matrix
+from scipy.sparse.csgraph import maximum_bipartite_matching
 import csv
+import json
 import numpy as np
 import os
-import random
-import shutil
-import math
-from pyvips import Image as VipsImage
-from concurrent.futures import ThreadPoolExecutor, as_completed
-
-from . import utils
-from . import CircleAnnotation
-from . import Image
-from . import PatchesCollection
+import warnings
 
 class Dataset(object):
+    def __init__(self, json_path, only_classes=[]):
+        with open(json_path, 'r') as f:
+            params = json.load(f)
+        self.base_dir = os.path.dirname(json_path)
+        self.images_dir = self.resolve_path(params['images_dir'])
+        self.metadata_file = self.resolve_path(params['metadata_file'])
+        self.test_annotations_file = self.resolve_path(params['test_annotations_file'])
+        self.train_annotations_file = self.resolve_path(params['train_annotations_file'])
+        self.training_images_path = self.resolve_path('training_images')
+        self.coco_ann_file = self.resolve_path('training_annotations.json')
+        self.only_classes = only_classes
 
-   def __init__(self, config_path, only_classes=[]):
-      with open(config_path, 'r') as f:
-         self.config = json.load(f)
-      self.config_dir = os.path.dirname(config_path)
-      self.name = self.config['name']
-      self.crop_dimension = self.config.get('crop_dimension', 512)
-      self.only_classes = only_classes
+    def resolve_path(self, path):
+        return os.path.abspath(os.path.join(self.base_dir, path))
 
-   def get_config_path(self, key):
-      return utils.normalize_path(self.config_dir, self.config[key])
+    def generate(self, scale_transfer_target, max_workers=4):
+        if not os.path.exists(self.training_images_path):
+           os.makedirs(self.training_images_path)
 
-   def get_metadata(self):
-      metadata_path = self.get_config_path('metadata_file')
-      with open(metadata_path, 'r') as file:
-         reader = csv.reader(file)
-         next(reader)
-         metadata = {row[0]: float(row[1]) for row in reader}
+        target_scale = scale_transfer_target.get_mean_scale()
+        metadata = self.get_image_metadata()
 
-      return metadata
+        executor = ThreadPoolExecutor(max_workers=max_workers)
+        jobs = []
 
-   def get_mean_distance(self):
-      metadata = self.get_metadata()
+        for filename, annotations in self.get_training_annotations().items():
+            scale_factor = metadata[filename] / target_scale
+            jobs.append(executor.submit(self.process_image, filename, annotations, scale_factor))
 
-      return np.fromiter(metadata.values(), dtype=float).mean()
+        image_list = []
 
-   def get_annotation_patches_path(self):
-      return self.get_config_path('annotation_patches_dir')
+        for job in as_completed(jobs):
+            a = job.result()
+            if a is not False:
+                image_list.append(a)
 
-   def should_ignore_annotation(self, annotation):
-      return len(self.only_classes) > 0 and annotation.label not in self.only_classes
+        annotation_list = []
+        annotation_id = 0
+        for image in image_list:
+            annotations = image.pop('annotations')
+            for annotation in annotations:
+                annotation['id'] = annotation_id
+                annotation_id += 1
+                annotation_list.append(annotation)
 
-   def read_report(self, report_path):
-      metadata = self.get_metadata()
-      images_dir = self.get_config_path('images_dir')
-      images = {}
-      with open(report_path, 'r') as file:
-         reader = csv.reader(file)
-         next(reader)
-         for row in reader:
-            image_filename = row[8]
-            annotation = CircleAnnotation.CircleAnnotation(row)
+        if len(image_list) == 0:
+            raise Exception('No images in dataset. All corrupt?')
 
-            if self.should_ignore_annotation(annotation):
-               continue
+        # COCO format.
+        # See: https://mmdetection.readthedocs.io/en/latest/user_guides/train.html#coco-annotation-format
+        ann_file = {
+            'images': image_list,
+            'annotations': annotation_list,
+            'categories': [{
+                'id': 0,
+                'name': 'interesting',
+                'supercategory': 'interesting',
+            }],
+        }
 
-            if image_filename not in images:
-               image_path = os.path.join(images_dir, image_filename)
-               image_distance = metadata[image_filename]
-               images[image_filename] = Image.Image(image_path, image_distance)
-            images[image_filename].add_annotation(annotation)
+        with open(self.coco_ann_file, 'w') as f:
+            json.dump(ann_file, f)
 
-      return images.values()
+    def should_ignore_label(self, label):
+      return len(self.only_classes) > 0 and label not in self.only_classes
 
-   def get_train_images(self):
-      train_report = self.get_config_path('train_annotations_file')
+    def get_annotations(self, path):
+        annotations = {}
+        with open(path, 'r') as f:
+            reader = csv.reader(f)
+            # Ignore header.
+            next(reader)
+            for row in reader:
+                if self.should_ignore_label(row[2]):
+                    continue
+                image_filename = row[8]
+                center, radius = self.get_circle_from_row(row)
+                if image_filename not in annotations:
+                    annotations[image_filename] = []
+                annotations[image_filename].append([center[0], center[1], radius])
 
-      return self.read_report(train_report)
+        return annotations
 
-   def get_test_images(self):
-      test_report = self.get_config_path('test_annotations_file')
+    def get_training_annotations(self):
+        return self.get_annotations(self.train_annotations_file)
 
-      return self.read_report(test_report)
+    def get_test_annotations(self):
+        return self.get_annotations(self.test_annotations_file)
 
-   def get_annotation_patches(self):
-      return PatchesCollection.PatchesCollection(self.get_annotation_patches_path())
+    def get_image_metadata(self):
+        metadata = {}
+        with open(self.metadata_file, 'r') as f:
+            reader = csv.reader(f)
+            # Ignore header.
+            next(reader)
+            for row in reader:
+                metadata[row[0]] = float(row[1])
 
-   def generate_annotation_patches(self, scale_transfer_target=None, max_workers=4, reuse_patches=True):
-      scale_transfer = scale_transfer_target is not None
-      for_dataset = scale_transfer_target.name if scale_transfer else None
+        return metadata
 
-      if scale_transfer and not isinstance(scale_transfer_target, Dataset):
-         raise TypeError('The scale transfer target dataset must be a Dataset.')
+    def get_mean_scale(self):
+        metadata = self.get_image_metadata()
 
-      patches = self.get_annotation_patches()
+        return sum(metadata.values()) / len(metadata)
 
-      if patches.exists:
-         if reuse_patches and patches.scale_transfer == scale_transfer and patches.for_dataset == for_dataset and patches.crop_dimension == self.crop_dimension:
-            return patches
-         else:
-            patches.destroy()
+    def get_circle_from_row(self, row):
+        points = np.array(row[13].strip('[]').split(','), dtype=float)
+        shape_id = int(row[11])
+        if shape_id == 1: # Point
+            # Points get the default radius of 50
+            return points[:2], 50
+        elif shape_id == 4: # Circle
+            return points[:2], points[2]
+        elif points.size > 0:
+            points = points.reshape(-1, 2)
+            center = points.mean(axis=0)
+            radius = np.NINF
+            for c in points:
+                radius = max(np.linalg.norm(center - c), radius)
 
-      patches.create(self.crop_dimension)
-      images = self.get_train_images()
-      images_target_path = patches.get_images_path()
-      masks_target_path = patches.get_masks_path()
+            return center, radius
+        else:
+            raise Exception('Unsupported shape')
 
-      if scale_transfer:
-         target_distance = scale_transfer_target.get_mean_distance()
-         for image in images:
-            image.set_target_distance(target_distance)
+    def process_image(self, filename, annotations, scale_factor):
+        try:
+            source_path = os.path.join(self.images_dir, filename)
+            target_path = os.path.join(self.training_images_path, filename)
+            image = Image.new_from_file(source_path)
+            if not os.path.exists(os.path.dirname(target_path)):
+                os.makedirs(os.path.dirname(target_path))
 
-      executor = ThreadPoolExecutor(max_workers=max_workers)
-      jobs = []
-      for image in images:
-         jobs.append(executor.submit(image.generate_train_patches, images_target_path, masks_target_path, patches.crop_dimension))
+            annotations = np.round(np.array(annotations, dtype=np.float32) * scale_factor)
+            image = image.resize(scale_factor)
+            image.write_to_file(target_path, strip=True, Q=95)
 
-      images = []
-      masks = []
-      mean_pixels = []
+            coco_annotations = []
 
-      for job in as_completed(jobs):
-         i, m, p = job.result()
-         if i is not False:
-            images.extend(i)
-            masks.extend(m)
-            mean_pixels.extend(p)
+            for a in annotations:
+                coco_annotations.append({
+                    'id': 0, # Placeholder, will be updated to an unique ID later.
+                    'image_id': filename,
+                    'category_id': 0, # There is only one category.
+                    'bbox': [
+                        int(a[0] - a[2]), # px
+                        int(a[1] - a[2]), # py
+                        int(a[2] * 2), # width
+                        int(a[2] * 2), # height
+                    ],
+                    'area': int((a[2] * 2)**2),
+                    'iscrowd': 0,
+                })
 
-      mean_pixel = np.array(mean_pixels).mean(axis = 0).tolist()
 
-      patches.fill({
-         'scale_transfer': scale_transfer,
-         'for_dataset': for_dataset,
-         'images': images,
-         'masks': masks,
-         'mean_pixel': mean_pixel,
-      })
+        except (IOError, OSError, VipsError) as e:
+            warnings.warn(f'Image {filename} is corrupt or mising! Skipping...')
 
-      return patches
+            return False
 
-   def evaluate_test_images(self, results_path):
-      images = self.get_test_images()
+        return {
+            'id': filename,
+            'width': image.width,
+            'height': image.height,
+            'file_name': filename,
+            'annotations': coco_annotations,
+        }
 
-      evaluation = {
-         'total_annotations': 0,
-         'total_regions': 0,
-         'total_detected_annotations': 0,
-         'total_correct_regions': 0,
-         'recall': 0,
-         'precision': 0,
-         'f-score': 0,
-         'l-score': 0,
-      }
+    def evaluate_test_images(self, results_path):
+        annotations = self.get_test_annotations()
+        with open(results_path, 'r') as f:
+            detections = json.load(f)
 
-      for image in images:
-         ta, tr, cd, cr = image.evaluate(results_path)
-         evaluation['total_annotations'] += ta
-         evaluation['total_regions'] += tr
-         evaluation['total_detected_annotations'] += cd
-         evaluation['total_correct_regions'] += cr
+        total_annotations = 0
+        total_detections = 0
+        total_detected_annotations = 0
+        recall = 0
+        precision = 0
 
-      recall = evaluation['total_detected_annotations'] / evaluation['total_annotations']
-      evaluation['recall'] = recall
-      precision = evaluation['total_correct_regions'] / evaluation['total_regions']
-      evaluation['precision'] = precision
+        for filename, anns in annotations.items():
+            dets = detections.get(filename, [])
+            if len(dets) == 0:
+                TP = 0
+            else:
+                # Annotation matching developed by Torben Möller.
+                mm = self.generate_maximum_matching(anns, dets)
+                TP = np.count_nonzero(mm + 1) # unmatched vertices are represented by -1
 
-      if recall > 0 and precision > 0:
-         evaluation['f-score'] = 5 * recall * precision / (recall + 4 * precision)
+            total_annotations += len(anns)
+            total_detections += len(dets)
+            total_detected_annotations += TP
 
-      evaluation['l-score'] = 2 / ((1 + math.exp(-0.25 * (recall * 100 - 80))) + (1 + math.exp(-0.5 * (precision * 100 - 10))))
 
-      return evaluation
+        evaluation = {
+            'total_annotations': total_annotations,
+            'total_detections': total_detections,
+            'total_detected_annotations': total_detected_annotations,
+            'recall': total_detected_annotations / total_annotations,
+            'precision': total_detected_annotations / total_detections,
+        }
 
+        return evaluation
+
+    def generate_maximum_matching(gs, pr):
+        adjacency = np.zeros((len(gs), len(pr)), dtype=bool)
+        for i, gsa in enumerate(gs):
+            for j, pra in enumerate(pr):
+                adjacency[i, j] = annotations_match(gsa, pra)
+
+        return maximum_bipartite_matching(csr_matrix(adjacency))
+
+    def annotations_match(a, b):
+        # Annotations match if one contains the center of the other.
+        # Could also use IoU.
+        distance = np.linalg.norm(a[:2] - b[:2])
+
+        return distance <= a[2] or distance <= b[2]
