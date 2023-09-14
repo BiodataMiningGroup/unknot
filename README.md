@@ -2,7 +2,7 @@
 
 This repository contains the code for the paper "[Unsupervised knowledge transfer for object detection in marine environmental monitoring and exploration](https://doi.org/10.1109/ACCESS.2020.3014441)."
 
-The original code of the paper can be found as the **paper** release. The curent state of the repository includes several updates and improvements.
+The original code of the paper can be found as the [**paper**](releases/tag/paper) release. The current state of the repository includes several updates and improvements.
 
 ## Requirements
 
