@@ -189,8 +189,9 @@ class Dataset(object):
         precision = 0
 
         for filename, anns in annotations.items():
-            dets = detections.get(filename, [])
-            if len(dets) == 0:
+            anns = np.array(anns)
+            dets = np.array(detections.get(filename, []))
+            if dets.size == 0:
                 TP = 0
             else:
                 # Annotation matching developed by Torben Möller.
@@ -198,7 +199,7 @@ class Dataset(object):
                 TP = np.count_nonzero(mm + 1) # unmatched vertices are represented by -1
 
             total_annotations += len(anns)
-            total_detections += len(dets)
+            total_detections += dets.shape[0]
             total_detected_annotations += TP
 
 
@@ -212,15 +213,15 @@ class Dataset(object):
 
         return evaluation
 
-    def generate_maximum_matching(gs, pr):
+    def generate_maximum_matching(self, gs, pr):
         adjacency = np.zeros((len(gs), len(pr)), dtype=bool)
         for i, gsa in enumerate(gs):
             for j, pra in enumerate(pr):
-                adjacency[i, j] = annotations_match(gsa, pra)
+                adjacency[i, j] = self.annotations_match(gsa, pra)
 
         return maximum_bipartite_matching(csr_matrix(adjacency))
 
-    def annotations_match(a, b):
+    def annotations_match(self, a, b):
         # Annotations match if one contains the center of the other.
         # Could also use IoU.
         distance = np.linalg.norm(a[:2] - b[:2])

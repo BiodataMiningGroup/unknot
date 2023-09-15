@@ -1,8 +1,9 @@
+from mmdet.apis import init_detector, inference_detector
+from mmdet.utils import setup_cache_size_limit_of_dynamo
 from mmengine.config import Config
 from mmengine.runner import Runner
-from mmdet.utils import setup_cache_size_limit_of_dynamo
 from torch import cuda
-from mmdet.apis import init_detector, inference_detector
+import json
 import os
 
 class ObjectDetector(object):
@@ -75,15 +76,15 @@ class ObjectDetector(object):
         detections = {}
 
         for index, filename in enumerate(images):
-            print(f'Image {index + 1} of {total_images} (#{image_id})')
+            print(f'Image {index + 1} of {total_images} ({filename})')
             image_path = os.path.join(self.target.images_dir, filename)
             result = inference_detector(model, image_path)
-            detections[filename] = self.process_result(image_id, result.pred_instances)
+            detections[filename] = self.process_result(result.pred_instances)
 
         with open(os.path.join(self.work_dir, 'detections.json'), 'w') as f:
             json.dump(detections, f)
 
-    def process_result(self, image_id, pred):
+    def process_result(self, pred):
         points = []
         for bbox, score, label in zip(pred.bboxes, pred.scores, pred.labels):
             x1, y1, x2, y2 = bbox.detach().cpu().numpy()
