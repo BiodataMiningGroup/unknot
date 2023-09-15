@@ -2,16 +2,22 @@
 
 This repository contains the code for the paper "[Unsupervised knowledge transfer for object detection in marine environmental monitoring and exploration](https://doi.org/10.1109/ACCESS.2020.3014441)."
 
+The original code of the paper can be found as the [**paper**](https://github.com/BiodataMiningGroup/unknot/releases/tag/paper) release. The current state of the repository includes several updates and improvements.
+
 ## Requirements
 
-The code is written in Python 3 and uses TensorFlow. It requires a GPU for decent processing speeds. It was tested with Ubuntu 18.04, Python 3.6 and an NVIDIA Tesla V100 GPU with 16 GB video memory.
+The code is written in Python 3 and uses MMDetection. It requires a GPU for decent processing speeds. It was tested with Ubuntu 22.04, Python 3.10 and an NVIDIA Tesla V100 GPU with 16 GB video memory.
 
-Please refer to the [TensorFlow documentation](https://www.tensorflow.org/install/gpu#ubuntu_1804_cuda_101) on how to set up the GPU drivers and CUDA for TensorFlow.
-
-In addition, a few packages are required that can be installed in Ubuntu 18.04 with:
+Please install the latest NVIDIA drivers, e.g.:
 
 ```
-sudo apt install --no-install-recommends python3-pip python3-setuptools libvips42
+sudo apt install --no-install-recommends nvidia-driver-535-server
+```
+
+In addition, a few packages are required that can be installed in Ubuntu 22.04 with:
+
+```
+sudo apt install --no-install-recommends python3-pip libvips42
 ```
 
 ## Installation
@@ -19,7 +25,7 @@ sudo apt install --no-install-recommends python3-pip python3-setuptools libvips4
 Clone this repository with:
 
 ```
-git clone --recursive https://github.com/BiodataMiningGroup/unknot.git
+git clone https://github.com/BiodataMiningGroup/unknot.git
 ```
 
 Then run `pip3 install --user -r unknot/requirements.txt`. Alternatively you can use an Anaconda environment.
@@ -72,9 +78,3 @@ Please cite our paper if it is helpful to your work:
   doi={10.1109/ACCESS.2020.3014441}
 }
 ```
-
-## Acknowledgments
-
-This work uses the code of the following repositories:
-
-- [Mask R-CNN for Object Detection and Segmentation](https://github.com/matterport/Mask_RCNN)

@@ -1,3 +1,0 @@
-[submodule "vendor/Mask_RCNN"]
-	path = vendor/Mask_RCNN
-	url = https://github.com/mzur/Mask_RCNN.git
