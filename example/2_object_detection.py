@@ -8,7 +8,7 @@ source = Dataset(sys.argv[1])
 target = Dataset(sys.argv[2])
 results_dir = sys.argv[3]
 
-config = 'src/faster_rcnn_r50_fpn_1x.py'
+config = os.path.join(os.path.dirname(__file__), 'src/faster_rcnn_r50_fpn_1x.py')
 
 detector = ObjectDetector(config, source, target, results_dir)
 checkpoint_path = detector.train()
