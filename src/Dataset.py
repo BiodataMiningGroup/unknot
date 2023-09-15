@@ -25,18 +25,23 @@ class Dataset(object):
     def resolve_path(self, path):
         return os.path.abspath(os.path.join(self.base_dir, path))
 
-    def generate(self, scale_transfer_target, max_workers=4):
+    def generate(self, scale_transfer_target=None, max_workers=4):
         if not os.path.exists(self.training_images_path):
            os.makedirs(self.training_images_path)
 
-        target_scale = scale_transfer_target.get_mean_scale()
+        if scale_transfer_target is not None:
+            target_scale = scale_transfer_target.get_mean_scale()
         metadata = self.get_image_metadata()
 
         executor = ThreadPoolExecutor(max_workers=max_workers)
         jobs = []
 
         for filename, annotations in self.get_training_annotations().items():
-            scale_factor = metadata[filename] / target_scale
+            if scale_transfer_target is None:
+                scale_factor = 1
+            else:
+                scale_factor = metadata[filename] / target_scale
+
             jobs.append(executor.submit(self.process_image, filename, annotations, scale_factor))
 
         image_list = []
@@ -142,9 +147,16 @@ class Dataset(object):
             if not os.path.exists(os.path.dirname(target_path)):
                 os.makedirs(os.path.dirname(target_path))
 
-            annotations = np.round(np.array(annotations, dtype=np.float32) * scale_factor)
-            image = image.resize(scale_factor)
-            image.write_to_file(target_path, strip=True, Q=95)
+            if scale_factor != 1:
+                annotations = np.round(np.array(annotations, dtype=np.float32) * scale_factor)
+                image = image.resize(scale_factor)
+                image.write_to_file(target_path, strip=True, Q=95)
+            else:
+                # Read image to check if it is corrupt.
+                image.avg()
+                if not os.path.exists(os.path.dirname(target_path)):
+                    os.makedirs(os.path.dirname(target_path))
+                os.symlink(source_path, target_path)
 
             coco_annotations = []
 
