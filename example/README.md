@@ -24,6 +24,8 @@ python3 2_object_detection.py <path to source dataset>/dataset.json <path to tar
 
 The detection results will be stored in `detections.json` in the `results` directory.
 
+In the script, you can adjust `workers` based on the number of available CPUs and `batch_size` based on the available GPU memory.
+
 ## 3. Evaluation
 
 Run the following command perform the evaluation of an object detection result from the previous step (assuming the results were stored in the `results` directory):
