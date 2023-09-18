@@ -26,7 +26,7 @@ class ObjectDetector(object):
                 'dataset': {
                     'ann_file': self.source.coco_ann_file,
                     'data_prefix': {
-                        'img': self.source.images_dir,
+                        'img': self.source.training_images_path,
                     },
                 },
             },
