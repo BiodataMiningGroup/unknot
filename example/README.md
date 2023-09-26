@@ -32,4 +32,4 @@ Run the following command perform the evaluation of an object detection result f
 python3 3_evaluation.py <path to target dataset>/dataset.json results/detections.json
 ```
 
-This will output an evaluation that includes the recall, precision, <i>F</i><sub>2</sub>-Score and <i>L</i>-Score of the object detection result.
+This will output an evaluation that includes the recall and precision of the object detection result.
